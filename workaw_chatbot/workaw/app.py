@@ -94,7 +94,10 @@ def load_pdf_data_hybrid(file_path):
         return "", {}
 
 # --- เรียกใช้งาน ---
-pdf_filename = "Graphic.pdf"
+# --- แก้ไขเรื่อง Path ให้หาไฟล์เจอแน่นอน ---
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+pdf_filename = os.path.join(current_dir, "Graphic.pdf")
 pdf_text, pdf_hybrid_images = load_pdf_data_hybrid(pdf_filename)
 
 # --- 🔥 Prompt ปรับปรุงใหม่ (Strict Mode) 🔥 ---
