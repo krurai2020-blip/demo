@@ -113,7 +113,7 @@ FULL_SYSTEM_PROMPT = f"""
    - At the end of your answer, you MUST append **[PAGE: number]**.
    - Example: "วงล้อสีประกอบด้วย 12 สี [PAGE: 14]"
    - If the answer spans multiple pages, cite the one with the most relevant image or detail.
-4. If the answer is not in the context, state: "ขออภัย ไม่มีข้อมูลในเอกสารครับ".
+4. If the answer is not in the context, state: "ขออภัย ไม่มีข้อมูลในเอกสารค่ะ".
 
 ----------------------------------------
 CONTEXT (เนื้อหาจากเอกสาร):
