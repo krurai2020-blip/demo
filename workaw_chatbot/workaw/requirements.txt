@@ -13,7 +13,5 @@ streamlit
 gspread
 oauth2client
 pprintpp
-streamlit
-google-generativeai
 python-dotenv
 pymupdf
