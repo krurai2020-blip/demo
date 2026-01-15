@@ -7,16 +7,21 @@ from prompt import PROMPT_WORKAW
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import dotenv
 
-# โหลด Config
+# --- โหลด Config ---
+# ใช้โค้ดนี้เพื่อให้หาไฟล์เจอแน่นอนทั้งบนคอมและบน Cloud
 dotenv.load_dotenv()
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# --- Config (Temperature 0 = แม่นยำที่สุด) ---
+# --- Path Config ---
+current_dir = os.path.dirname(os.path.abspath(__file__))
+pdf_filename = os.path.join(current_dir, "Graphic.pdf")
+
+# --- Model Config (Temperature 0 เพื่อความแม่นยำ) ---
 generation_config = {
     "temperature": 0.0,
-    "top_p": 1.0, # ปรับเป็น 1.0 เพื่อให้อ่านข้อมูลครบถ้วน
-    "top_k": 32,
+    "top_p": 0.95,
+    "top_k": 64,
     "max_output_tokens": 2048,
     "response_mime_type": "text/plain",
 }
@@ -44,7 +49,7 @@ page_bg_img = """
 """
 st.markdown(page_bg_img, unsafe_allow_html=True)
 
-# --- ระบบอ่านไฟล์แบบ Hybrid (เหมือนเดิม เพราะดีที่สุดแล้ว) ---
+# --- ระบบอ่านไฟล์แบบ Hybrid ---
 @st.cache_resource
 def load_pdf_data_hybrid(file_path):
     text_content = ""
@@ -90,17 +95,13 @@ def load_pdf_data_hybrid(file_path):
             st.error(f"Error reading PDF: {e}")
             return "", {}
     else:
-        st.error(f"ไม่พบไฟล์ {file_path}")
+        st.error(f"ไม่พบไฟล์ {file_path} (กรุณาเช็คว่าอัปโหลดไฟล์ Graphic.pdf ขึ้น GitHub หรือยัง)")
         return "", {}
 
 # --- เรียกใช้งาน ---
-# --- แก้ไขเรื่อง Path ให้หาไฟล์เจอแน่นอน ---
-import os
-current_dir = os.path.dirname(os.path.abspath(__file__))
-pdf_filename = os.path.join(current_dir, "Graphic.pdf")
 pdf_text, pdf_hybrid_images = load_pdf_data_hybrid(pdf_filename)
 
-# --- 🔥 Prompt ปรับปรุงใหม่ (Strict Mode) 🔥 ---
+# --- Prompt (Strict Mode) ---
 FULL_SYSTEM_PROMPT = f"""
 {PROMPT_WORKAW}
 
@@ -113,7 +114,7 @@ FULL_SYSTEM_PROMPT = f"""
    - At the end of your answer, you MUST append **[PAGE: number]**.
    - Example: "วงล้อสีประกอบด้วย 12 สี [PAGE: 14]"
    - If the answer spans multiple pages, cite the one with the most relevant image or detail.
-4. If the answer is not in the context, state: "ขออภัย ไม่มีข้อมูลในเอกสารค่ะ".
+4. If the answer is not in the context, state: "ขออภัย ไม่มีข้อมูลในเอกสารครับ".
 
 ----------------------------------------
 CONTEXT (เนื้อหาจากเอกสาร):
@@ -121,13 +122,44 @@ CONTEXT (เนื้อหาจากเอกสาร):
 ----------------------------------------
 """
 
-# ใช้โมเดล gemini-flash-latest (ตามที่เช็คแล้วว่าใช้ได้)
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash", 
-    safety_settings=SAFETY_SETTINGS,
-    generation_config=generation_config,
-    system_instruction=FULL_SYSTEM_PROMPT
-)
+# --- 🔥 จุดแก้ไขสำคัญ: ระบบเลือกโมเดลอัตโนมัติ (Robust Model Selection) 🔥 ---
+# เพิ่มรายชื่อโมเดลให้ครอบคลุมเวอร์ชันต่างๆ เพื่อเลี่ยงปัญหา 404
+available_models = [
+    "gemini-1.5-flash-001",   # ลองเวอร์ชันระบุรหัสก่อน (เสถียรสุด)
+    "gemini-1.5-flash-002",   # เวอร์ชันใหม่
+    "gemini-1.5-flash",       # ชื่อกลางๆ
+    "gemini-1.5-pro-001",     # ถ้า Flash ไม่ได้ ลอง Pro
+    "gemini-1.5-pro",
+    "gemini-pro"              # รุ่นเก่าสุด (สำรองสุดท้าย)
+]
+
+model = None
+
+for model_name in available_models:
+    try:
+        print(f"กำลังลองเชื่อมต่อกับโมเดล: {model_name}...")
+        test_model = genai.GenerativeModel(
+            model_name=model_name,
+            safety_settings=SAFETY_SETTINGS,
+            generation_config=generation_config,
+            system_instruction=FULL_SYSTEM_PROMPT
+        )
+        # ลองส่งข้อความทดสอบสั้นๆ (Ping) เพื่อเช็คว่าใช้ได้จริงไหม
+        # ใช้ 'Hello' เพื่อประหยัด Token และเช็คการตอบกลับ
+        response = test_model.generate_content("Hello")
+        
+        # ถ้าไม่มี Error บรรทัดนี้จะทำงาน
+        model = test_model
+        print(f"✅ เชื่อมต่อสำเร็จ! ใช้โมเดล: {model_name}")
+        st.toast(f"Connected to model: {model_name}", icon="✅") # แจ้งเตือนบนจอ user ด้วย
+        break
+    except Exception as e:
+        print(f"❌ โมเดล {model_name} ใช้ไม่ได้: {e}")
+        continue
+
+if model is None:
+    st.error("ไม่สามารถเชื่อมต่อกับโมเดล Gemini ได้เลย (ลองทุกโมเดลแล้ว 404/Error หมด) กรุณาตรวจสอบ API Key หรือลองใหม่อีกครั้ง")
+    st.stop()
 
 # --- UI Streamlit ---
 def clear_history():
@@ -154,7 +186,6 @@ for msg in st.session_state["messages"]:
         st.write(msg["content"])
         if "image_list" in msg and msg["image_list"]:
              for idx, img_data in enumerate(msg["image_list"]):
-                # แสดงรูปภาพ
                 st.image(img_data, caption=f"🖼️ ภาพประกอบจากหน้า {msg.get('page_num_ref')}", use_container_width=True)
 
 # รับข้อความ
