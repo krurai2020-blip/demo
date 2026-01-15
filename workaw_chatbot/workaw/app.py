@@ -9,9 +9,7 @@ import dotenv
 
 # --- โหลด Config ---
 # ใช้โค้ดนี้เพื่อให้หาไฟล์เจอแน่นอนทั้งบนคอมและบน Cloud
-dotenv.load_dotenv()# เพิ่มหลังบรรทัด dotenv.load_dotenv()
-st.write(f"🔑 API Key Loaded: {os.getenv('GOOGLE_API_KEY') is not None}")
-st.write(f"📦 Library Version: {genai.__version__}")
+dotenv.load_dotenv()
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 genai.configure(api_key=GOOGLE_API_KEY)
 
