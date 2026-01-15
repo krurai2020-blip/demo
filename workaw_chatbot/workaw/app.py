@@ -7,21 +7,97 @@ from prompt import PROMPT_WORKAW
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import dotenv
 
-# --- โหลด Config ---
-# ใช้โค้ดนี้เพื่อให้หาไฟล์เจอแน่นอนทั้งบนคอมและบน Cloud
+# --- Load Environment ---
 dotenv.load_dotenv()
-GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-genai.configure(api_key=GOOGLE_API_KEY)
 
-# --- Path Config ---
-current_dir = os.path.dirname(os.path.abspath(__file__))
-pdf_filename = os.path.join(current_dir, "Graphic.pdf")
+# --- CSS Theme ---
+page_bg_img = """
+<style>
+[data-testid="stAppViewContainer"] {
+    background-image: linear-gradient(to bottom right, #E0C3FC, #FFD1DC, #BDE0FE);
+}
+[data-testid="stHeader"] { background-color: rgba(0,0,0,0); }
+[data-testid="stSidebar"] { background-color: #F3E5F5; }
+</style>
+"""
+st.markdown(page_bg_img, unsafe_allow_html=True)
+st.title("✨ น้อง Graphic Bot (โหมดตรวจสอบ) 🛠️")
 
-# --- Model Config (Temperature 0 เพื่อความแม่นยำ) ---
+# --- 🔧 ส่วนตรวจสอบระบบ (DIAGNOSTICS) ---
+with st.expander("🔴 คลิกที่นี่เพื่อดูสถานะการเชื่อมต่อ (Debug Info)", expanded=True):
+    st.write("### 1. ตรวจสอบ API Key")
+    
+    # 1. เช็คจาก .env
+    env_key = os.getenv('GOOGLE_API_KEY')
+    api_key_to_use = None
+    
+    if env_key:
+        st.success(f"✅ พบ API Key ในระบบแล้ว (ขึ้นต้นด้วย: {env_key[:5]}...)")
+        api_key_to_use = env_key
+    else:
+        st.error("❌ ไม่พบ API Key ใน Environment Variable (.env)")
+
+    # 2. ช่องสำรองสำหรับกรอก Key เอง
+    user_key = st.text_input("👇 หรือวาง API Key ของคุณตรงนี้เพื่อทดสอบทันที:", type="password")
+    if user_key:
+        api_key_to_use = user_key
+        st.info("⚠️ กำลังใช้ Key ที่กรอกใหม่นี้แทน Key ในเครื่อง")
+
+    st.write("### 2. ตรวจสอบโมเดลจาก Google")
+    valid_model_name = None
+    
+    if api_key_to_use:
+        try:
+            genai.configure(api_key=api_key_to_use)
+            
+            # สั่งให้ Google List รายชื่อโมเดลมาให้ดูเลย ไม่ต้องเดา
+            st.write("⏳ กำลังติดต่อ Google Server เพื่อขอรายชื่อโมเดล...")
+            models_list = list(genai.list_models())
+            
+            found_models = []
+            for m in models_list:
+                # กรองเอาเฉพาะโมเดลที่ Chat ได้ (generateContent)
+                if 'generateContent' in m.supported_generation_methods:
+                    found_models.append(m.name)
+            
+            if found_models:
+                st.success(f"✅ เชื่อมต่อสำเร็จ! โมเดลที่ใช้ได้: {found_models}")
+                
+                # ลำดับความชอบในการเลือกโมเดล (Flash -> Pro -> อื่นๆ)
+                preferred_order = [
+                    "models/gemini-1.5-flash", 
+                    "models/gemini-1.5-flash-latest",
+                    "models/gemini-1.5-flash-001",
+                    "models/gemini-1.5-pro", 
+                    "models/gemini-pro"
+                ]
+                
+                # Logic การเลือกโมเดล
+                for pref in preferred_order:
+                    if pref in found_models:
+                        valid_model_name = pref
+                        break
+                
+                if not valid_model_name:
+                    valid_model_name = found_models[0] # ถ้าไม่เจอตัวที่ชอบ เอาตัวแรกที่มี
+                
+                st.info(f"🚀 ระบบเลือกใช้โมเดล: **{valid_model_name}**")
+            else:
+                st.warning("⚠️ เชื่อมต่อได้ แต่บัญชีนี้ไม่มีสิทธิ์ใช้โมเดล Chat (generateContent)")
+                
+        except Exception as e:
+            st.error(f"❌ API Key ผิดพลาด หรือ เชื่อมต่อไม่ได้: {e}")
+            st.stop()
+    else:
+        st.warning("กรุณาใส่ API Key ก่อนเริ่มใช้งาน")
+        st.stop()
+
+# --- ถ้าผ่านจุดข้างบนมาได้ แสดงว่าเชื่อมต่อติดแล้ว ---
+
+# --- Config Model ---
 generation_config = {
     "temperature": 0.0,
     "top_p": 0.95,
-    "top_k": 64,
     "max_output_tokens": 2048,
     "response_mime_type": "text/plain",
 }
@@ -33,210 +109,65 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
 }
 
-# --- CSS ธีมพาสเทล ---
-page_bg_img = """
-<style>
-[data-testid="stAppViewContainer"] {
-    background-image: linear-gradient(to bottom right, #E0C3FC, #FFD1DC, #BDE0FE);
-}
-[data-testid="stHeader"] {
-    background-color: rgba(0, 0, 0, 0);
-}
-[data-testid="stSidebar"] {
-    background-color: #F3E5F5;
-}
-</style>
-"""
-st.markdown(page_bg_img, unsafe_allow_html=True)
+# สร้างโมเดลจากชื่อที่หาเจอจริงๆ
+if valid_model_name:
+    model = genai.GenerativeModel(
+        model_name=valid_model_name,
+        safety_settings=SAFETY_SETTINGS,
+        generation_config=generation_config,
+        system_instruction=PROMPT_WORKAW
+    )
 
-# --- ระบบอ่านไฟล์แบบ Hybrid ---
+# --- PDF Loading Logic ---
 @st.cache_resource
-def load_pdf_data_hybrid(file_path):
-    text_content = ""
-    page_images_map = {} 
+def load_pdf_data(file_path):
+    if not os.path.exists(file_path):
+        return None, {}
     
-    if os.path.exists(file_path):
-        try:
-            doc = fitz.open(file_path)
-            print(f"กำลังประมวลผลไฟล์ {file_path}...")
-            
-            for i, page in enumerate(doc):
-                page_num = i + 1
-                # ใส่ Marker ชัดๆ ให้ AI เห็นเลขหน้า
-                text = page.get_text()
-                text_content += f"\n[--- Page {page_num} START ---]\n{text}\n[--- Page {page_num} END ---]\n"
-                
-                # 1. ลองตัดรูป (Crop)
-                image_blocks = [b for b in page.get_text("blocks") if b[6] == 1]
-                saved_images = []
-                
-                if image_blocks:
-                    for img_block in image_blocks:
-                        rect = fitz.Rect(img_block[:4])
-                        if rect.width > 50 and rect.height > 50: 
-                            rect.x0 -= 5; rect.y0 -= 5; rect.x1 += 5; rect.y1 += 5
-                            try:
-                                pix_crop = page.get_pixmap(matrix=fitz.Matrix(3, 3), clip=rect)
-                                saved_images.append(pix_crop.tobytes("png"))
-                            except:
-                                pass
-                
-                # 2. ถ้าไม่มีรูป ให้ Capture ทั้งหน้า
-                if not saved_images:
-                    pix_full = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-                    saved_images.append(pix_full.tobytes("png"))
-
-                if saved_images:
-                    page_images_map[page_num] = saved_images
-                
-            print(f"✅ โหลดไฟล์สำเร็จ")
-            return text_content, page_images_map
-        except Exception as e:
-            st.error(f"Error reading PDF: {e}")
-            return "", {}
-    else:
-        st.error(f"ไม่พบไฟล์ {file_path} (กรุณาเช็คว่าอัปโหลดไฟล์ Graphic.pdf ขึ้น GitHub หรือยัง)")
-        return "", {}
-
-# --- เรียกใช้งาน ---
-pdf_text, pdf_hybrid_images = load_pdf_data_hybrid(pdf_filename)
-
-# --- Prompt (Strict Mode) ---
-FULL_SYSTEM_PROMPT = f"""
-{PROMPT_WORKAW}
-
-**CRITICAL INSTRUCTIONS FOR ACCURACY:**
-1. Use ONLY the information provided in the CONTEXT below. Do NOT use outside knowledge.
-2. **Finding the correct Page Number:** - The context is marked with `[--- Page X START ---]` and `[--- Page X END ---]`.
-   - When you find the answer text, look immediately ABOVE it to see which "Page START" tag it belongs to.
-   - You MUST use that specific Page number.
-3. **Citation Format:**
-   - At the end of your answer, you MUST append **[PAGE: number]**.
-   - Example: "วงล้อสีประกอบด้วย 12 สี [PAGE: 14]"
-   - If the answer spans multiple pages, cite the one with the most relevant image or detail.
-4. If the answer is not in the context, state: "ขออภัย ไม่มีข้อมูลในเอกสารครับ".
-
-----------------------------------------
-CONTEXT (เนื้อหาจากเอกสาร):
-{pdf_text}
-----------------------------------------
-"""
-
-# --- 🔥 จุดแก้ไขสำคัญ: ระบบเลือกโมเดลอัตโนมัติ (Robust Model Selection) 🔥 ---
-# ปรับปรุงรายการโมเดลให้ครอบคลุมชื่อ Alias ล่าสุด
-available_models = [
-    "gemini-2.5-flash",       # ลองชื่อมาตรฐานก่อน
-    "gemini-2.5-flash-latest",# ชื่อ Alias ล่าสุด
-    "gemini-2.5-flash-001",   # ชื่อระบุเวอร์ชัน (เสถียรสุด)
-    "gemini-2.5-flash-002",   # เวอร์ชันใหม่กว่า
-    "gemini-2.5-pro",         # ถ้า Flash ไม่ได้ ลอง Pro
-    "gemini-2.5-pro-001",
-    "gemini-pro"              # รุ่นเก่าสุด (สำรองสุดท้าย)
-]
-
-model = None
-active_model_name = ""
-
-for model_name in available_models:
     try:
-        print(f"กำลังลองเชื่อมต่อกับโมเดล: {model_name}...")
-        test_model = genai.GenerativeModel(
-            model_name=model_name,
-            safety_settings=SAFETY_SETTINGS,
-            generation_config=generation_config,
-            system_instruction=FULL_SYSTEM_PROMPT
-        )
-        # ลองส่งข้อความทดสอบสั้นๆ (Ping)
-        response = test_model.generate_content("Hello")
-        
-        # ถ้าไม่มี Error บรรทัดนี้จะทำงาน
-        model = test_model
-        active_model_name = model_name
-        print(f"✅ เชื่อมต่อสำเร็จ! ใช้โมเดล: {model_name}")
-        break
-    except Exception as e:
-        print(f"❌ โมเดล {model_name} ใช้ไม่ได้: {e}")
-        continue
-
-if model is None:
-    st.error("ไม่สามารถเชื่อมต่อกับโมเดล Gemini ได้เลย (ลองทุกโมเดลแล้ว 404/Error หมด) กรุณาตรวจสอบ API Key หรือลองใหม่อีกครั้ง")
-    st.stop()
-
-# --- UI Streamlit ---
-def clear_history():
-    st.session_state["messages"] = [
-        {"role": "model", "content": "สวัสดีค่ะ น้อง Graphic Bot พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🎨✨"}
-    ]
-    st.rerun()
-
-with st.sidebar:
-    st.success(f"🤖 Connected: {active_model_name}") # แสดงชื่อโมเดลที่ใช้งานได้จริง
-    if st.button("🗑️ ล้างประวัติการคุย"):
-        clear_history()
-
-st.title("✨ น้อง Graphic Bot 🎨")
-
-if "messages" not in st.session_state:
-    st.session_state["messages"] = [
-        {"role": "model", "content": "สวัสดีค่ะ น้อง Graphic Bot พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🎨✨"}
-    ]
-
-# แสดงผลประวัติ
-for msg in st.session_state["messages"]:
-    avatar_icon = "🐰" if msg["role"] == "user" else "🦄"
-    with st.chat_message(msg["role"], avatar=avatar_icon):
-        st.write(msg["content"])
-        if "image_list" in msg and msg["image_list"]:
-             for idx, img_data in enumerate(msg["image_list"]):
-                st.image(img_data, caption=f"🖼️ ภาพประกอบจากหน้า {msg.get('page_num_ref')}", use_container_width=True)
-
-# รับข้อความ
-if prompt := st.chat_input():
-    st.session_state["messages"].append({"role": "user", "content": prompt})
-    st.chat_message("user", avatar="🐰").write(prompt)
-
-    def generate_response():
-        history_api = [
-            {"role": msg["role"], "parts": [{"text": msg["content"]}]}
-            for msg in st.session_state["messages"] if "content" in msg
-        ]
-
-        try:
-            # ย้ำคำสั่งในทุกข้อความที่ส่งไป
-            strict_prompt = f"{prompt}\n(คำสั่งลับ: ค้นหาคำตอบจาก Context เท่านั้น และต้องระบุเลขหน้า [PAGE: x] ให้ถูกต้องตรงกับ Tag `[--- Page X ---]` ที่กำกับอยู่)"
+        doc = fitz.open(file_path)
+        text_content = ""
+        images_map = {}
+        for i, page in enumerate(doc):
+            text_content += f"\n[--- Page {i+1} START ---]\n{page.get_text()}\n[--- Page {i+1} END ---]\n"
             
-            chat_session = model.start_chat(history=history_api)
-            response = chat_session.send_message(strict_prompt)
-            response_text = response.text
-            
-            # ดึงเลขหน้า
-            page_match = re.search(r"\[PAGE:\s*(\d+)\]", response_text)
-            images_to_show = []
-            ref_page_num = None
-            
-            if page_match:
-                try:
-                    p_num = int(page_match.group(1))
-                    ref_page_num = p_num
-                    if p_num in pdf_hybrid_images:
-                        images_to_show = pdf_hybrid_images[p_num]
-                except:
-                    pass
-
-            with st.chat_message("model", avatar="🦄"):
-                st.write(response_text)
-                if images_to_show:
-                    for idx, img_data in enumerate(images_to_show):
-                        st.image(img_data, caption=f"🖼️ ภาพประกอบจากหน้า {p_num}", use_container_width=True)
-            
-            msg_data = {"role": "model", "content": response_text}
-            if images_to_show:
-                msg_data["image_list"] = images_to_show 
-                msg_data["page_num_ref"] = ref_page_num
+            # ตัดรูปอย่างง่าย
+            try:
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                images_map[i+1] = [pix.tobytes("png")]
+            except:
+                pass
                 
-            st.session_state["messages"].append(msg_data)
+        return text_content, images_map
+    except Exception as e:
+        st.error(f"อ่าน PDF ไม่ได้: {e}")
+        return None, {}
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+pdf_filename = os.path.join(current_dir, "Graphic.pdf")
+pdf_text, pdf_images = load_pdf_data(pdf_filename)
+
+if not pdf_text:
+    st.error("⚠️ ไม่พบไฟล์ Graphic.pdf ในโฟลเดอร์เดียวกับ app.py")
+
+# --- Chat Interface ---
+if "messages" not in st.session_state:
+    st.session_state["messages"] = [{"role": "model", "content": "ระบบพร้อมใช้งานแล้วค่ะ (ผ่านการตรวจสอบ)"}]
+
+for msg in st.session_state["messages"]:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
+
+if prompt := st.chat_input("ถามมาได้เลย..."):
+    st.session_state["messages"].append({"role": "user", "content": prompt})
+    st.chat_message("user").write(prompt)
+    
+    if pdf_text and valid_model_name:
+        full_prompt = f"{prompt}\nCONTEXT:\n{pdf_text}"
+        
+        try:
+            response = model.generate_content(full_prompt)
+            st.chat_message("model").write(response.text)
+            st.session_state["messages"].append({"role": "model", "content": response.text})
         except Exception as e:
-            st.error(f"ระบบขัดข้อง: {e}")
-
-    generate_response()
+            st.error(f"Error: {e}")
