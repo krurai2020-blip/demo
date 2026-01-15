@@ -123,7 +123,7 @@ CONTEXT (เนื้อหาจากเอกสาร):
 
 # ใช้โมเดล gemini-flash-latest (ตามที่เช็คแล้วว่าใช้ได้)
 model = genai.GenerativeModel(
-    model_name="gemini-flash-latest", 
+    model_name="gemini-1.5-flash", 
     safety_settings=SAFETY_SETTINGS,
     generation_config=generation_config,
     system_instruction=FULL_SYSTEM_PROMPT
