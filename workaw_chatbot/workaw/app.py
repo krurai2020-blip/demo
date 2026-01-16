@@ -133,34 +133,52 @@ CONTEXT (เนื้อหาจากเอกสาร):
 ----------------------------------------
 """
 
-# --- 🔥 ระบบเลือกโมเดล (อัปเดตตามสิทธิ์ User) 🔥 ---
+# --- 🔥 ฟังก์ชันเช็ค Error (Debug Mode) เอามาทับอันเดิม 🔥 ---
 @st.cache_resource(show_spinner="กำลังเชื่อมต่อสมอง AI...")
 def setup_gemini_model():
-    # รายชื่อโมเดลเรียงตามลำดับความเก่ง (จากลิสต์ที่คุณเช็คมา)
+    # รายชื่อโมเดลตามที่คุณเช็คสิทธิ์มา
     candidate_models = [
-        "gemini-2.5-flash",         # ตัวเทพ ใหม่ล่าสุด
-        "gemini-2.0-flash",         # ตัวเสถียร
-        "gemini-flash-latest",      # ตัวสำรอง (Auto Update)
-        "gemini-2.0-flash-lite"     # ตัวเล็ก เร็ว
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-flash-latest"
     ]
+    
+    error_logs = [] # เก็บ Error ไว้โชว์
 
     for model_name in candidate_models:
         try:
-            print(f"🔄 กำลังลองเชื่อมต่อ: {model_name}...")
+            # สร้าง Object โมเดล (ยังไม่ใส่ System Prompt ตอนเทส เพื่อลดภาระ)
             test_model = genai.GenerativeModel(
+                model_name=model_name,
+                safety_settings=SAFETY_SETTINGS,
+                generation_config=generation_config
+            )
+            # Ping Test: ส่งข้อความสั้นๆ
+            test_model.generate_content("Hi")
+            
+            # ถ้าผ่าน ให้สร้างโมเดลตัวจริงพร้อม System Prompt
+            real_model = genai.GenerativeModel(
                 model_name=model_name,
                 safety_settings=SAFETY_SETTINGS,
                 generation_config=generation_config,
                 system_instruction=FULL_SYSTEM_PROMPT
             )
-            # Ping Test
-            test_model.generate_content("Hi")
-            print(f"✅ เชื่อมต่อสำเร็จ! ใช้โมเดล: {model_name}")
-            return test_model, model_name
-        except Exception as e:
-            print(f"❌ {model_name} Error: {e}")
-            continue
             
+            return real_model, model_name
+            
+        except Exception as e:
+            # เก็บข้อความ Error ไว้
+            error_msg = f"❌ {model_name}: {str(e)}"
+            print(error_msg)
+            error_logs.append(error_msg)
+            continue
+    
+    # ถ้าหลุดมาถึงตรงนี้ แสดงว่าพังหมด ให้โชว์ Error บนหน้าจอแอปเลย
+    st.error("⚠️ เชื่อมต่อไม่ได้ ดูรายละเอียดด้านล่าง:")
+    for err in error_logs:
+        st.code(err, language='text') # โชว์ Error ให้เห็นชัดๆ
+        
     return None, None
 
 # เรียกใช้ฟังก์ชัน
