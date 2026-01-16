@@ -3,14 +3,23 @@ import re
 import fitz  # PyMuPDF
 import google.generativeai as genai
 import streamlit as st
-from prompt import PROMPT_WORKAW
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import dotenv
 
+# --- พยายาม Import Prompt จากไฟล์ภายนอก (ถ้าไม่มีให้ใช้ค่า Default) ---
+try:
+    from prompt import PROMPT_WORKAW
+except ImportError:
+    PROMPT_WORKAW = "คุณคือผู้ช่วย AI ผู้เชี่ยวชาญด้านกราฟิก"
+
 # --- โหลด Config ---
-# ใช้โค้ดนี้เพื่อให้หาไฟล์เจอแน่นอนทั้งบนคอมและบน Cloud
 dotenv.load_dotenv()
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+
+if not GOOGLE_API_KEY:
+    st.error("❌ ไม่พบ API Key กรุณาตั้งค่าในไฟล์ .env หรือ Environment Variable")
+    st.stop()
+
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # --- Path Config ---
@@ -49,8 +58,8 @@ page_bg_img = """
 """
 st.markdown(page_bg_img, unsafe_allow_html=True)
 
-# --- ระบบอ่านไฟล์แบบ Hybrid ---
-@st.cache_resource
+# --- ระบบอ่านไฟล์แบบ Hybrid (Cache ไว้จะได้ไม่อ่านใหม่ทุกครั้ง) ---
+@st.cache_resource(show_spinner="กำลังอ่านไฟล์ PDF...")
 def load_pdf_data_hybrid(file_path):
     text_content = ""
     page_images_map = {} 
@@ -58,7 +67,6 @@ def load_pdf_data_hybrid(file_path):
     if os.path.exists(file_path):
         try:
             doc = fitz.open(file_path)
-            print(f"กำลังประมวลผลไฟล์ {file_path}...")
             
             for i, page in enumerate(doc):
                 page_num = i + 1
@@ -89,17 +97,19 @@ def load_pdf_data_hybrid(file_path):
                 if saved_images:
                     page_images_map[page_num] = saved_images
                 
-            print(f"✅ โหลดไฟล์สำเร็จ")
             return text_content, page_images_map
         except Exception as e:
-            st.error(f"Error reading PDF: {e}")
+            print(f"Error reading PDF: {e}")
             return "", {}
     else:
-        st.error(f"ไม่พบไฟล์ {file_path} (กรุณาเช็คว่าอัปโหลดไฟล์ Graphic.pdf ขึ้น GitHub หรือยัง)")
         return "", {}
 
 # --- เรียกใช้งาน ---
 pdf_text, pdf_hybrid_images = load_pdf_data_hybrid(pdf_filename)
+
+if not pdf_text:
+    st.error(f"ไม่พบไฟล์ {pdf_filename} หรือไฟล์ว่างเปล่า กรุณาตรวจสอบไฟล์")
+    st.stop()
 
 # --- Prompt (Strict Mode) ---
 FULL_SYSTEM_PROMPT = f"""
@@ -122,64 +132,41 @@ CONTEXT (เนื้อหาจากเอกสาร):
 ----------------------------------------
 """
 
-# --- 🔥 จุดแก้ไขสำคัญ: ระบบเลือกโมเดลอัตโนมัติ (Robust Model Selection) 🔥 ---
-# ปรับปรุงรายการโมเดลให้ครอบคลุมชื่อ Alias ล่าสุด
-available_models = [
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.0-flash-exp",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-001",
-    "gemini-2.0-flash-exp-image-generation",
-    "gemini-2.0-flash-lite-001",
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash-lite-preview-02-05",
-    "gemini-2.0-flash-lite-preview",
-    "gemini-exp-1206",
-    "gemini-2.5-flash-preview-tts",
-    "gemini-2.5-pro-preview-tts",
-    "gemini-flash-latest",
-    "gemini-flash-lite-latest",
-    "gemini-pro-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-flash-image-preview",
-    "gemini-2.5-flash-image",
-    "gemini-2.5-flash-preview-09-2025",
-    "gemini-2.5-flash-lite-preview-09-2025",
-    "gemini-3-pro-preview",
-    "gemini-3-flash-preview",
-    "gemini-3-pro-image-preview",
-    "nano-banana-pro-preview",
-    "gemini-robotics-er-1.5-preview",
-    "gemini-2.5-computer-use-preview-10-2025"
-]
+# --- 🔥 จุดแก้ไขสำคัญ: ระบบเลือกโมเดล (มี Cache + ใช้รุ่น 2.0) 🔥 ---
+@st.cache_resource(show_spinner="กำลังเชื่อมต่อสมอง AI...")
+def setup_gemini_model():
+    # รายชื่อโมเดลที่แนะนำ (ลบชื่อที่ไม่มีจริงออกแล้ว)
+    candidate_models = [
+        "gemini-2.0-flash",        # แนะนำ: เสถียรและเร็ว
+        "gemini-2.0-flash-exp",    # ตัวใหม่ (อาจมีโควต้าฟรีเยอะ)
+        "gemini-2.0-flash-lite-preview-02-05", # รุ่นเล็ก เร็วมาก
+        "gemini-1.5-flash"         # สำรอง
+    ]
 
-model = None
-active_model_name = ""
+    for model_name in candidate_models:
+        try:
+            print(f"🔄 กำลังลองเชื่อมต่อ: {model_name}...")
+            test_model = genai.GenerativeModel(
+                model_name=model_name,
+                safety_settings=SAFETY_SETTINGS,
+                generation_config=generation_config,
+                system_instruction=FULL_SYSTEM_PROMPT
+            )
+            # Ping Test
+            test_model.generate_content("Hi")
+            print(f"✅ เชื่อมต่อสำเร็จ! ใช้โมเดล: {model_name}")
+            return test_model, model_name
+        except Exception as e:
+            print(f"❌ {model_name} Error: {e}")
+            continue
+            
+    return None, None
 
-for model_name in available_models:
-    try:
-        print(f"กำลังลองเชื่อมต่อกับโมเดล: {model_name}...")
-        test_model = genai.GenerativeModel(
-            model_name=model_name,
-            safety_settings=SAFETY_SETTINGS,
-            generation_config=generation_config,
-            system_instruction=FULL_SYSTEM_PROMPT
-        )
-        # ลองส่งข้อความทดสอบสั้นๆ (Ping)
-        response = test_model.generate_content("Hello")
-        
-        # ถ้าไม่มี Error บรรทัดนี้จะทำงาน
-        model = test_model
-        active_model_name = model_name
-        print(f"✅ เชื่อมต่อสำเร็จ! ใช้โมเดล: {model_name}")
-        break
-    except Exception as e:
-        print(f"❌ โมเดล {model_name} ใช้ไม่ได้: {e}")
-        continue
+# เรียกใช้ฟังก์ชัน (จะทำงานแค่ครั้งเดียวเพราะมี Cache)
+model, active_model_name = setup_gemini_model()
 
 if model is None:
-    st.error("ไม่สามารถเชื่อมต่อกับโมเดล Gemini ได้เลย (ลองทุกโมเดลแล้ว 404/Error หมด) กรุณาตรวจสอบ API Key หรือลองใหม่อีกครั้ง")
+    st.error("🚨 ไม่สามารถเชื่อมต่อกับ Gemini ได้เลย (กรุณาตรวจสอบ API Key หรือ Internet)")
     st.stop()
 
 # --- UI Streamlit ---
@@ -190,7 +177,7 @@ def clear_history():
     st.rerun()
 
 with st.sidebar:
-    st.success(f"🤖 Connected: {active_model_name}") # แสดงชื่อโมเดลที่ใช้งานได้จริง
+    st.success(f"🤖 Connected: {active_model_name}") 
     if st.button("🗑️ ล้างประวัติการคุย"):
         clear_history()
 
@@ -222,8 +209,8 @@ if prompt := st.chat_input():
         ]
 
         try:
-            # ย้ำคำสั่งในทุกข้อความที่ส่งไป
-            strict_prompt = f"{prompt}\n(คำสั่งลับ: ค้นหาคำตอบจาก Context เท่านั้น และต้องระบุเลขหน้า [PAGE: x] ให้ถูกต้องตรงกับ Tag `[--- Page X ---]` ที่กำกับอยู่)"
+            # ย้ำคำสั่งในทุกข้อความ
+            strict_prompt = f"{prompt}\n(คำสั่งลับ: ค้นหาคำตอบจาก Context เท่านั้น และต้องระบุเลขหน้า [PAGE: x] ให้ถูกต้อง)"
             
             chat_session = model.start_chat(history=history_api)
             response = chat_session.send_message(strict_prompt)
@@ -233,6 +220,7 @@ if prompt := st.chat_input():
             page_match = re.search(r"\[PAGE:\s*(\d+)\]", response_text)
             images_to_show = []
             ref_page_num = None
+            p_num = None # Init ตัวแปร
             
             if page_match:
                 try:
