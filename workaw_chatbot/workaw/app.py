@@ -30,7 +30,7 @@ pdf_filename = os.path.join(current_dir, "Graphic.pdf")
 generation_config = {
     "temperature": 0.0,
     "top_p": 0.95,
-    "top_k": 64,
+    "top_k": 40,
     "max_output_tokens": 2048,
     "response_mime_type": "text/plain",
 }
@@ -112,23 +112,18 @@ if not pdf_text:
 else:
     pass # ไฟล์ปกติ
 
-# --- Prompt (Strict Mode) ---
+# --- Prompt (Strict Mode: บังคับตอบตามเอกสารเท่านั้น) ---
 FULL_SYSTEM_PROMPT = f"""
-{PROMPT_WORKAW}
+คุณคือ AI ผู้ช่วยตอบคำถามจากเอกสารที่แนบมานี้เท่านั้น (Document QA)
 
-**CRITICAL INSTRUCTIONS FOR ACCURACY:**
-1. Use ONLY the information provided in the CONTEXT below. Do NOT use outside knowledge.
-2. **Finding the correct Page Number:** - The context is marked with `[--- Page X START ---]` and `[--- Page X END ---]`.
-   - When you find the answer text, look immediately ABOVE it to see which "Page START" tag it belongs to.
-   - You MUST use that specific Page number.
-3. **Citation Format:**
-   - At the end of your answer, you MUST append **[PAGE: number]**.
-   - Example: "วงล้อสีประกอบด้วย 12 สี [PAGE: 14]"
-   - If the answer spans multiple pages, cite the one with the most relevant image or detail.
-4. If the answer is not in the context, state: "ขออภัย ไม่มีข้อมูลในเอกสารครับ".
+**กฏเหล็กในการตอบ (Strict Rules):**
+1. **ให้ตอบโดยใช้ข้อมูลที่มีอยู่ในส่วน [CONTEXT] ด้านล่างนี้เท่านั้น**
+2. **ห้าม** ใช้ความรู้อื่นนอกเหนือจากเอกสาร หรือความรู้ทั่วไปที่คุณมีในการตอบเด็ดขาด
+3. หากคำถามใดไม่มีคำตอบอยู่ใน [CONTEXT] ให้ตอบว่า: "ขออภัยครับ ข้อมูลส่วนนี้ไม่มีระบุไว้ในเอกสาร" (ห้ามพยายามเดาคำตอบเอง)
+4. การอ้างอิงหน้า: เมื่อนำข้อมูลมาจากส่วนใด ให้ระบุเลขหน้าต่อท้ายเสมอ เช่น [PAGE: 5] โดยดูจาก Tag [--- Page X START ---] ที่กำกับอยู่เหนือข้อความนั้น
 
 ----------------------------------------
-CONTEXT (เนื้อหาจากเอกสาร):
+[CONTEXT] (เนื้อหาจากเอกสาร):
 {pdf_text}
 ----------------------------------------
 """
