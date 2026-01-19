@@ -42,24 +42,33 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
 }
 
-# --- CSS ธีมพาสเทล ---
+# --- 🌊 CSS ธีมท้องทะเล (Ocean Tone) 🌊 ---
 page_bg_img = """
 <style>
+/* พื้นหลังหลักไล่สีฟ้าสดใสเหมือนน้ำทะเล */
 [data-testid="stAppViewContainer"] {
-    background-image: linear-gradient(to bottom right, #E0C3FC, #FFD1DC, #BDE0FE);
+    background-image: linear-gradient(to bottom right, #89f7fe, #66a6ff);
 }
+/* ส่วนหัวใส */
 [data-testid="stHeader"] {
     background-color: rgba(0, 0, 0, 0);
 }
+/* แถบด้านข้างสีฟ้าอ่อน-ขาว (ฟองคลื่น) */
 [data-testid="stSidebar"] {
-    background-color: #F3E5F5;
+    background-color: #E0F7FA;
+    background-image: linear-gradient(180deg, #E0F7FA 0%, #B2EBF2 100%);
+    border-right: 1px solid #4DD0E1;
+}
+/* ปรับสีข้อความใน Sidebar ให้เข้มขึ้นเล็กน้อยเพื่อให้อ่านง่าย */
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+    color: #006064;
 }
 </style>
 """
 st.markdown(page_bg_img, unsafe_allow_html=True)
 
 # --- ระบบอ่านไฟล์แบบ Hybrid (Cache ไว้จะได้ไม่อ่านใหม่ทุกครั้ง) ---
-@st.cache_resource(show_spinner="กำลังอ่านไฟล์ PDF...")
+@st.cache_resource(show_spinner="กำลังดำน้ำหาข้อมูลในไฟล์ PDF... 🤿")
 def load_pdf_data_hybrid(file_path):
     text_content = ""
     page_images_map = {} 
@@ -128,8 +137,8 @@ FULL_SYSTEM_PROMPT = f"""
 ----------------------------------------
 """
 
-# --- 🔥 ฟังก์ชันเช็ค Error (Debug Mode) เอามาทับอันเดิม 🔥 ---
-@st.cache_resource(show_spinner="กำลังเชื่อมต่อสมอง AI...")
+# --- 🔥 ฟังก์ชันเช็ค Error (Debug Mode)  🔥 ---
+@st.cache_resource(show_spinner="กำลังเชื่อมต่อคลื่นสมอง AI... 🌊")
 def setup_gemini_model():
     # รายชื่อโมเดลตามที่คุณเช็คสิทธิ์มา
     candidate_models = [
@@ -137,10 +146,8 @@ def setup_gemini_model():
         "gemini-2.0-flash",
         "gemini-2.0-flash-lite",
         "gemini-flash-latest"
-    ]
-    
+    ]  
     error_logs = [] # เก็บ Error ไว้โชว์
-
     for model_name in candidate_models:
         try:
             # สร้าง Object โมเดล (ยังไม่ใส่ System Prompt ตอนเทส เพื่อลดภาระ)
@@ -150,30 +157,25 @@ def setup_gemini_model():
                 generation_config=generation_config
             )
             # Ping Test: ส่งข้อความสั้นๆ
-            test_model.generate_content("Hi")
-            
+            test_model.generate_content("Hi")           
             # ถ้าผ่าน ให้สร้างโมเดลตัวจริงพร้อม System Prompt
             real_model = genai.GenerativeModel(
                 model_name=model_name,
                 safety_settings=SAFETY_SETTINGS,
                 generation_config=generation_config,
                 system_instruction=FULL_SYSTEM_PROMPT
-            )
-            
-            return real_model, model_name
-            
+            )           
+            return real_model, model_name  
         except Exception as e:
             # เก็บข้อความ Error ไว้
             error_msg = f"❌ {model_name}: {str(e)}"
             print(error_msg)
             error_logs.append(error_msg)
-            continue
-    
+            continue 
     # ถ้าหลุดมาถึงตรงนี้ แสดงว่าพังหมด ให้โชว์ Error บนหน้าจอแอปเลย
     st.error("⚠️ เชื่อมต่อไม่ได้ ดูรายละเอียดด้านล่าง:")
     for err in error_logs:
-        st.code(err, language='text') # โชว์ Error ให้เห็นชัดๆ
-        
+        st.code(err, language='text') # โชว์ Error ให้เห็นชัดๆ    
     return None, None
 
 # เรียกใช้ฟังก์ชัน
@@ -186,25 +188,26 @@ if model is None:
 # --- UI Streamlit ---
 def clear_history():
     st.session_state["messages"] = [
-        {"role": "model", "content": "สวัสดีค่ะ น้อง Graphic Bot พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🎨✨"}
+        {"role": "model", "content": "สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🐬🌊"}
     ]
     st.rerun()
 
 with st.sidebar:
-    st.success(f"🤖 Connected: {active_model_name}") 
+    st.success(f"⚓ Connected: {active_model_name}") 
     if st.button("🗑️ ล้างประวัติการคุย"):
         clear_history()
 
-st.title("✨ น้อง Graphic Bot 🎨")
+st.title("✨ น้องโลมา Graphic Bot 🐬")
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = [
-        {"role": "model", "content": "สวัสดีค่ะ น้อง Graphic Bot พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🎨✨"}
+        {"role": "model", "content": "สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🐬🌊"}
     ]
 
 # แสดงผลประวัติ
 for msg in st.session_state["messages"]:
-    avatar_icon = "🐰" if msg["role"] == "user" else "🦄"
+    # เปลี่ยน Avatar เป็นธีมทะเล: User=คนดำน้ำ/ปลา, Model=โลมา
+    avatar_icon = "🐠" if msg["role"] == "user" else "🐬"
     with st.chat_message(msg["role"], avatar=avatar_icon):
         st.write(msg["content"])
         if "image_list" in msg and msg["image_list"]:
@@ -212,9 +215,9 @@ for msg in st.session_state["messages"]:
                 st.image(img_data, caption=f"🖼️ ภาพประกอบจากหน้า {msg.get('page_num_ref')}", use_container_width=True)
 
 # รับข้อความ
-if prompt := st.chat_input():
+if prompt := st.chat_input("พิมพ์คำถามที่นี่ได้เลยครับ..."):
     st.session_state["messages"].append({"role": "user", "content": prompt})
-    st.chat_message("user", avatar="🐰").write(prompt)
+    st.chat_message("user", avatar="🐠").write(prompt)
 
     def generate_response():
         history_api = [
@@ -245,7 +248,7 @@ if prompt := st.chat_input():
                 except:
                     pass
 
-            with st.chat_message("model", avatar="🦄"):
+            with st.chat_message("model", avatar="🐬"):
                 st.write(response_text)
                 if images_to_show:
                     for idx, img_data in enumerate(images_to_show):
