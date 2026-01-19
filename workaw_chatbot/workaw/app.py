@@ -43,128 +43,109 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
 }
 
-# --- 🫧 ฟังก์ชันสร้างฟองอากาศ (One-line HTML) 🫧 ---
+# --- 🫧 ฟังก์ชันสร้างฟองอากาศ ---
 def create_bubbles(num_bubbles=20):
     bubbles_html = ""
     for _ in range(num_bubbles):
-        left = random.randint(1, 99)      # สุ่มตำแหน่งแนวนอน
-        size = random.randint(10, 30)     # สุ่มขนาด
-        duration = random.randint(10, 25) # สุ่มความเร็ว
-        delay = random.randint(0, 15)     # สุ่มเวลาเริ่ม
-        opacity = random.uniform(0.1, 0.4)# สุ่มความจาง
+        left = random.randint(1, 99)      
+        size = random.randint(10, 30)     
+        duration = random.randint(15, 30) # ปรับให้ช้าลงเล็กน้อยให้เข้ากับพาสเทล
+        delay = random.randint(0, 15)     
+        opacity = random.uniform(0.2, 0.5)# เพิ่มความชัดของฟองนิดนึงบนพื้นหลังสว่าง
         
-        # เขียน HTML เป็นบรรทัดเดียว
         bubbles_html += f'<div class="bubble" style="left: {left}%; width: {size}px; height: {size}px; animation-duration: {duration}s; animation-delay: {delay}s; opacity: {opacity};"></div>'
         
     return bubbles_html
 
-# สร้าง HTML ของฟองอากาศเตรียมไว้
 bubbles_html_code = create_bubbles()
 
-# --- 🌊 CSS ธีมท้องทะเลน้ำตื้น (Shallow Water Tone) 🌊 ---
-base_css = """
+# --- 🦄 CSS ธีม Pastel Ocean Dream (ม่วง-ชมพู-ฟ้า) 🦄 ---
+animated_ocean_css = f"""
 <style>
-/* 1. Animation พื้นหลังไล่สี */
-@keyframes gradient_flow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
+/* 1. Animation พื้นหลังไล่สี (Gradient Flow) */
+@keyframes gradient_flow {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
 
 /* 2. Animation ปลาว่ายน้ำ */
-@keyframes swim {
-    0% { left: -15%; transform: translateY(0px) rotate(0deg); }
-    25% { transform: translateY(30px) rotate(5deg); }
-    50% { transform: translateY(0px) rotate(0deg); }
-    75% { transform: translateY(-30px) rotate(-5deg); }
-    100% { left: 110%; transform: translateY(0px) rotate(0deg); }
-}
+@keyframes swim {{
+    0% {{ left: -15%; transform: translateY(0px) rotate(0deg); }}
+    25% {{ transform: translateY(20px) rotate(5deg); }}
+    50% {{ transform: translateY(0px) rotate(0deg); }}
+    75% {{ transform: translateY(-20px) rotate(-5deg); }}
+    100% {{ left: 110%; transform: translateY(0px) rotate(0deg); }}
+}}
 
 /* 3. Animation ฟองอากาศลอยขึ้น */
-@keyframes rise {
-    0% { bottom: -50px; transform: translateX(0); }
-    50% { transform: translateX(20px); } 
-    100% { bottom: 110vh; transform: translateX(-20px); }
-}
+@keyframes rise {{
+    0% {{ bottom: -50px; transform: translateX(0); }}
+    50% {{ transform: translateX(15px); }} 
+    100% {{ bottom: 110vh; transform: translateX(-15px); }}
+}}
 
-/* ปรับแต่ง Container หลัก (ใช้โทนสีน้ำตื้นพาสเทลสว่าง #E0F7FA เป็นหลัก) */
-[data-testid="stAppViewContainer"] {
-    /* ใช้สีหลัก #E0F7FA และไล่เฉดสีใกล้เคียงกันเพื่อให้ยังดูมีการเคลื่อนไหว */
-    background: linear-gradient(-45deg, #E0F7FA, #E5F9FB, #DFF2F8, #E0F7FA);
+/* ปรับแต่ง Container หลัก: Gradient ม่วง-ชมพู-ฟ้า พาสเทล */
+[data-testid="stAppViewContainer"] {{
+    /* สี: ม่วงอ่อน -> ชมพูนม -> ฟ้าเบบี้บลู -> ม่วงคราม */
+    background: linear-gradient(-45deg, #e0c3fc, #ffdee9, #b5fffc, #8ec5fc, #c2e9fb);
     background-size: 400% 400%;
-    animation: gradient_flow 25s ease infinite; /* ปรับให้ไหลช้าลงนิดหน่อยให้ดูนุ่มนวล */
-}
+    animation: gradient_flow 15s ease infinite;
+}}
 
 /* ส่วนหัวใส */
-[data-testid="stHeader"] {
+[data-testid="stHeader"] {{
     background-color: rgba(0,0,0,0);
-}
+}}
 
-/* --- ✨ ตกแต่งหัวข้อ (H1) --- */
-h1 {
-    /* สีตัวหนังสือเข้ม ไล่ระดับเพื่อให้เด่นบนพื้นหลังสว่าง */
-    background: linear-gradient(to right, #0277BD, #00838F);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    font-weight: 900 !important;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-}
+/* Sidebar สีขาวขุ่น (Milky Glass) เพื่อให้อ่านง่ายบนพาสเทล */
+[data-testid="stSidebar"] {{
+    background-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(15px);
+    border-right: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 5px 0 15px rgba(224, 195, 252, 0.1);
+}}
 
-/* ปรับสีข้อความทั่วไปให้เข้มขึ้น อ่านง่าย */
-p, li, span, div {
-    color: #006064; /* สีเขียวอมฟ้าน้ำทะเลเข้ม */
-}
-
-/* Sidebar ใสแบบกระจก */
-[data-testid="stSidebar"] {
-    background-color: rgba(255, 255, 255, 0.5); /* เพิ่มความขาวให้ Sidebar ชัดขึ้นอีกนิด */
-    backdrop-filter: blur(10px);
-    border-right: 1px solid rgba(255,255,255,0.7);
-}
-
-/* ปรับสีข้อความใน Sidebar */
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
-    color: #01579B !important; /* สีน้ำเงินเข้ม */
-}
+/* ปรับสี Text ใน Sidebar ให้ดูนุ่มนวล */
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] span {{
+    color: #5a4b6e !important; /* สีม่วงเทาเข้ม */
+}}
 
 /* Style ของตัวปลา */
-.fish-container {
+.fish-container {{
     position: fixed;
     bottom: 20px;
-    z-index: 1;
+    z-index: 1; 
     font-size: 50px;
-    animation: swim 20s linear infinite;
+    animation: swim 25s linear infinite;
     pointer-events: none;
-}
+    opacity: 0.9;
+    filter: saturate(1.2); /* เร่งสีปลาให้สดขึ้นนิดนึงตัดกับพาสเทล */
+}}
 
-/* Style ของฟองอากาศ */
-.bubble {
+/* Style ของฟองอากาศ - สีขาวมุก */
+.bubble {{
     position: fixed;
     bottom: -50px;
-    background: rgba(255, 255, 255, 0.7); /* ฟองชัดขึ้นนิดนึง */
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.4));
     border-radius: 50%;
     z-index: 0;
     animation: rise infinite ease-in;
     pointer-events: none;
-    box-shadow: inset -2px -2px 5px rgba(0,0,0,0.05);
-    border: 1px solid rgba(255,255,255,0.9);
-}
+    box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.5);
+}}
 </style>
 
-<div class="fish-container" style="bottom: 10%; animation-duration: 25s;">🐠</div>
-<div class="fish-container" style="bottom: 30%; animation-duration: 18s; animation-delay: 5s; font-size: 30px;">🐡</div>
-<div class="fish-container" style="bottom: 60%; animation-duration: 35s; animation-delay: 2s; font-size: 60px;">🐬</div>
-<div class="fish-container" style="bottom: 80%; animation-duration: 40s; animation-delay: 10s; font-size: 25px;">🦑</div>
+<div class="fish-container" style="bottom: 15%; animation-duration: 28s;">🐠</div>
+<div class="fish-container" style="bottom: 35%; animation-duration: 20s; animation-delay: 5s; font-size: 30px;">🐡</div>
+<div class="fish-container" style="bottom: 65%; animation-duration: 38s; animation-delay: 2s; font-size: 60px;">🐬</div>
+<div class="fish-container" style="bottom: 85%; animation-duration: 45s; animation-delay: 10s; font-size: 25px;">🦑</div>
+
+{bubbles_html_code}
 """
+st.markdown(animated_ocean_css, unsafe_allow_html=True)
 
-# รวม CSS หลัก กับ HTML ฟองอากาศ
-final_html_render = base_css + "\n\n" + bubbles_html_code
-
-st.markdown(final_html_render, unsafe_allow_html=True)
-
-# --- ระบบอ่านไฟล์แบบ Hybrid ---
+# --- ระบบอ่านไฟล์แบบ Hybrid (เหมือนเดิม) ---
 @st.cache_resource(show_spinner="กำลังดำน้ำหาข้อมูลในไฟล์ PDF... 🤿")
 def load_pdf_data_hybrid(file_path):
     text_content = ""
@@ -225,11 +206,13 @@ FULL_SYSTEM_PROMPT = f"""
 # --- Setup Model ---
 @st.cache_resource(show_spinner="กำลังเชื่อมต่อคลื่นสมอง AI... 🌊")
 def setup_gemini_model():
-    candidate_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+    candidate_models = ["gemini-2.0-flash", "gemini-1.5-flash"]
     for model_name in candidate_models:
         try:
+            # Ping test
             test_model = genai.GenerativeModel(model_name=model_name, safety_settings=SAFETY_SETTINGS, generation_config=generation_config)
-            test_model.generate_content("Hi") # Ping test
+            test_model.generate_content("Hi") 
+            # Real setup
             real_model = genai.GenerativeModel(model_name=model_name, safety_settings=SAFETY_SETTINGS, generation_config=generation_config, system_instruction=FULL_SYSTEM_PROMPT)
             return real_model, model_name
         except: continue
@@ -275,6 +258,7 @@ if prompt := st.chat_input("พิมพ์คำถามที่นี่..."
         response = model.start_chat(history=history_api).send_message(strict_prompt)
         response_text = response.text
         
+        # Extract Images
         page_match = re.search(r"\[PAGE:\s*(\d+)\]", response_text)
         images_to_show = []
         p_num = None
