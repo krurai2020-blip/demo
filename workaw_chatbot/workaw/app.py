@@ -43,7 +43,7 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
 }
 
-# --- 🫧 ฟังก์ชันสร้างฟองอากาศ (One-line HTML) 🫧 ---
+# --- 🫧 ฟังก์ชันสร้างฟองอากาศ (แก้ไขแล้ว: ไม่ให้แสดงเป็น Code Block) 🫧 ---
 def create_bubbles(num_bubbles=20):
     bubbles_html = ""
     for _ in range(num_bubbles):
@@ -53,7 +53,7 @@ def create_bubbles(num_bubbles=20):
         delay = random.randint(0, 15)     # สุ่มเวลาเริ่ม
         opacity = random.uniform(0.1, 0.4)# สุ่มความจาง
         
-        # เขียน HTML เป็นบรรทัดเดียว
+        # เขียน HTML เป็นบรรทัดเดียว เพื่อป้องกัน Streamlit ตีความผิด
         bubbles_html += f'<div class="bubble" style="left: {left}%; width: {size}px; height: {size}px; animation-duration: {duration}s; animation-delay: {delay}s; opacity: {opacity};"></div>'
         
     return bubbles_html
@@ -61,103 +61,84 @@ def create_bubbles(num_bubbles=20):
 # สร้าง HTML ของฟองอากาศเตรียมไว้
 bubbles_html_code = create_bubbles()
 
-# --- 🌊 CSS ธีมท้องทะเล + Gradient Text 🌊 ---
-# (ใช้ string ธรรมดา """ แทน f""" เพื่อไม่ให้ปีกกา CSS ตีกัน)
-base_css = """
+# --- 🌊 CSS ธีมท้องทะเล + Animation ครบชุด 🌊 ---
+animated_ocean_css = f"""
 <style>
-/* 1. Animation พื้นหลังไล่สี */
-@keyframes gradient_flow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
+/* 1. Animation พื้นหลังไล่สี (Gradient Flow) */
+@keyframes gradient_flow {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
 
-/* 2. Animation ปลาว่ายน้ำ */
-@keyframes swim {
-    0% { left: -15%; transform: translateY(0px) rotate(0deg); }
-    25% { transform: translateY(30px) rotate(5deg); }
-    50% { transform: translateY(0px) rotate(0deg); }
-    75% { transform: translateY(-30px) rotate(-5deg); }
-    100% { left: 110%; transform: translateY(0px) rotate(0deg); }
-}
+/* 2. Animation ปลาว่ายน้ำ (Swimming Fish) */
+@keyframes swim {{
+    0% {{ left: -15%; transform: translateY(0px) rotate(0deg); }}
+    25% {{ transform: translateY(30px) rotate(5deg); }}
+    50% {{ transform: translateY(0px) rotate(0deg); }}
+    75% {{ transform: translateY(-30px) rotate(-5deg); }}
+    100% {{ left: 110%; transform: translateY(0px) rotate(0deg); }}
+}}
 
-/* 3. Animation ฟองอากาศลอยขึ้น */
-@keyframes rise {
-    0% { bottom: -50px; transform: translateX(0); }
-    50% { transform: translateX(20px); } 
-    100% { bottom: 110vh; transform: translateX(-20px); }
-}
+/* 3. Animation ฟองอากาศลอยขึ้น (Rising Bubbles) */
+@keyframes rise {{
+    0% {{ bottom: -50px; transform: translateX(0); }}
+    50% {{ transform: translateX(20px); }} 
+    100% {{ bottom: 110vh; transform: translateX(-20px); }}
+}}
 
 /* ปรับแต่ง Container หลัก */
-[data-testid="stAppViewContainer"] {
+[data-testid="stAppViewContainer"] {{
     background: linear-gradient(-45deg, #00c6fb, #005bea, #00c6fb, #0072ff);
     background-size: 400% 400%;
     animation: gradient_flow 20s ease infinite;
-}
+}}
 
 /* ส่วนหัวใส */
-[data-testid="stHeader"] {
+[data-testid="stHeader"] {{
     background-color: rgba(0,0,0,0);
-}
+}}
 
-/* --- ✨ ตกแต่งหัวข้อ (H1) เป็นสีไล่ระดับโทนเข้มพาสเทล ✨ --- */
-h1 {
-    /* กำหนดสีไล่ระดับ: ม่วงเข้มพาสเทล -> น้ำเงินเข้มอมเขียว */
-    background: linear-gradient(to right, #7F5A83, #0D324D);
-    
-    /* เทคนิคทำให้พื้นหลังไปอยู่ในตัวหนังสือ */
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    
-    /* เพิ่มความหนาและเงาเล็กน้อยให้ดูมีมิติ */
-    font-weight: 900 !important;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.15);
-}
-
-/* Sidebar ใสแบบกระจก */
-[data-testid="stSidebar"] {
+/* Sidebar ใสแบบกระจก (Glassmorphism) */
+[data-testid="stSidebar"] {{
     background-color: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(10px);
     border-right: 1px solid rgba(255,255,255,0.3);
-}
+}}
 
 /* Style ของตัวปลา */
-.fish-container {
+.fish-container {{
     position: fixed;
     bottom: 20px;
-    z-index: 1;
+    z-index: 1; /* อยู่หน้าฟองอากาศ */
     font-size: 50px;
     animation: swim 20s linear infinite;
-    pointer-events: none;
-}
+    pointer-events: none; /* กดทะลุได้ */
+}}
 
 /* Style ของฟองอากาศ */
-.bubble {
+.bubble {{
     position: fixed;
     bottom: -50px;
     background: rgba(255, 255, 255, 0.6);
     border-radius: 50%;
-    z-index: 0;
+    z-index: 0; /* อยู่หลังปลา */
     animation: rise infinite ease-in;
     pointer-events: none;
     box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1);
-}
+}}
 </style>
 
 <div class="fish-container" style="bottom: 10%; animation-duration: 25s;">🐠</div>
 <div class="fish-container" style="bottom: 30%; animation-duration: 18s; animation-delay: 5s; font-size: 30px;">🐡</div>
 <div class="fish-container" style="bottom: 60%; animation-duration: 35s; animation-delay: 2s; font-size: 60px;">🐬</div>
 <div class="fish-container" style="bottom: 80%; animation-duration: 40s; animation-delay: 10s; font-size: 25px;">🦑</div>
+
+{bubbles_html_code}
 """
+st.markdown(animated_ocean_css, unsafe_allow_html=True)
 
-# รวม CSS หลัก กับ HTML ฟองอากาศ (ใช้วิธีบวก string แทน f-string)
-final_html_render = base_css + "\n\n" + bubbles_html_code
-
-st.markdown(final_html_render, unsafe_allow_html=True)
-
-# --- ระบบอ่านไฟล์แบบ Hybrid ---
+# --- ระบบอ่านไฟล์แบบ Hybrid (เหมือนเดิม) ---
 @st.cache_resource(show_spinner="กำลังดำน้ำหาข้อมูลในไฟล์ PDF... 🤿")
 def load_pdf_data_hybrid(file_path):
     text_content = ""
@@ -218,6 +199,7 @@ FULL_SYSTEM_PROMPT = f"""
 # --- Setup Model ---
 @st.cache_resource(show_spinner="กำลังเชื่อมต่อคลื่นสมอง AI... 🌊")
 def setup_gemini_model():
+    # ลองเชื่อมต่อหลายโมเดลเผื่อตัวใดตัวหนึ่งล่ม
     candidate_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
     for model_name in candidate_models:
         try:
@@ -263,11 +245,13 @@ if prompt := st.chat_input("พิมพ์คำถามที่นี่..."
 
     try:
         history_api = [{"role": m["role"], "parts": [{"text": m["content"]}]} for m in st.session_state["messages"] if "content" in m]
+        # ย้ำคำสั่ง (Strict) ในทุกรอบการคุย
         strict_prompt = f"{prompt}\n(คำสั่งลับ: ค้นหาคำตอบจาก Context เท่านั้น และระบุเลขหน้า [PAGE: x])"
         
         response = model.start_chat(history=history_api).send_message(strict_prompt)
         response_text = response.text
         
+        # Extract Images (หาเลขหน้าจากคำตอบ)
         page_match = re.search(r"\[PAGE:\s*(\d+)\]", response_text)
         images_to_show = []
         p_num = None
@@ -277,11 +261,13 @@ if prompt := st.chat_input("พิมพ์คำถามที่นี่..."
                 if p_num in pdf_hybrid_images: images_to_show = pdf_hybrid_images[p_num]
             except: pass
 
+        # แสดงคำตอบ AI
         with st.chat_message("model", avatar="🐬"):
             st.write(response_text)
             if images_to_show:
                 for img in images_to_show: st.image(img, caption=f"หน้า {p_num}", use_container_width=True)
         
+        # บันทึกลง Session State
         msg_data = {"role": "model", "content": response_text}
         if images_to_show:
             msg_data["image_list"] = images_to_show
