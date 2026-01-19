@@ -1,5 +1,6 @@
 import os
 import re
+import random # import เพิ่มเพื่อสุ่มตำแหน่งฟองอากาศ
 import fitz  # PyMuPDF
 import google.generativeai as genai
 import streamlit as st
@@ -42,63 +43,104 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
 }
 
-# --- 🌊 CSS ธีมท้องทะเลเคลื่อนไหว (Animated Ocean Theme) 🌊 ---
-animated_ocean_css = """
+# --- 🫧 สร้าง HTML สำหรับฟองอากาศ (Generate Bubbles) 🫧 ---
+# ฟังก์ชันสร้างฟองอากาศจำนวนมากโดยสุ่มตำแหน่ง
+def create_bubbles(num_bubbles=15):
+    bubbles_html = ""
+    for _ in range(num_bubbles):
+        left = random.randint(1, 99)      # สุ่มตำแหน่งแนวนอน 1-99%
+        size = random.randint(10, 30)     # สุ่มขนาดฟอง 10-30px
+        duration = random.randint(10, 25) # สุ่มความเร็วลอยขึ้น 10-25 วินาที
+        delay = random.randint(0, 15)     # สุ่มเวลาเริ่ม
+        opacity = random.uniform(0.1, 0.4)# สุ่มความโปร่งใส
+        
+        bubbles_html += f"""
+        <div class="bubble" style="
+            left: {left}%; 
+            width: {size}px; 
+            height: {size}px; 
+            animation-duration: {duration}s; 
+            animation-delay: {delay}s;
+            opacity: {opacity};
+        "></div>
+        """
+    return bubbles_html
+
+bubbles_html_code = create_bubbles()
+
+# --- 🌊 CSS ธีมท้องทะเล + ปลา + ฟองอากาศ 🌊 ---
+animated_ocean_css = f"""
 <style>
-/* 1. สร้าง Animation การไล่สีพื้นหลัง (เหมือนน้ำไหล) */
-@keyframes gradient_flow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
+/* 1. Animation พื้นหลังไล่สี */
+@keyframes gradient_flow {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
 
-/* 2. สร้าง Animation ปลาว่ายน้ำ */
-@keyframes swim {
-    0% { left: -10%; transform: translateY(0px) rotate(0deg); }
-    25% { transform: translateY(20px) rotate(5deg); }
-    50% { transform: translateY(0px) rotate(0deg); }
-    75% { transform: translateY(-20px) rotate(-5deg); }
-    100% { left: 110%; transform: translateY(0px) rotate(0deg); }
-}
+/* 2. Animation ปลาว่ายน้ำ */
+@keyframes swim {{
+    0% {{ left: -15%; transform: translateY(0px) rotate(0deg); }}
+    25% {{ transform: translateY(30px) rotate(5deg); }}
+    50% {{ transform: translateY(0px) rotate(0deg); }}
+    75% {{ transform: translateY(-30px) rotate(-5deg); }}
+    100% {{ left: 110%; transform: translateY(0px) rotate(0deg); }}
+}}
 
-[data-testid="stAppViewContainer"] {
-    background: linear-gradient(-45deg, #4facfe, #00f2fe, #43e97b, #00c6fb);
+/* 3. Animation ฟองอากาศลอยขึ้น */
+@keyframes rise {{
+    0% {{ bottom: -50px; transform: translateX(0); }}
+    50% {{ transform: translateX(20px); }} /* ส่ายไปมานิดหน่อย */
+    100% {{ bottom: 110vh; transform: translateX(-20px); }}
+}}
+
+[data-testid="stAppViewContainer"] {{
+    background: linear-gradient(-45deg, #00c6fb, #005bea, #00c6fb, #0072ff);
     background-size: 400% 400%;
-    animation: gradient_flow 15s ease infinite; /* สั่งให้ขยับ */
-}
+    animation: gradient_flow 20s ease infinite;
+}}
 
-[data-testid="stHeader"] {
-    background-color: rgba(0, 0, 0, 0);
-}
+[data-testid="stHeader"] {{
+    background-color: rgba(0,0,0,0);
+}}
 
-[data-testid="stSidebar"] {
-    background-color: rgba(255, 255, 255, 0.8);
-    border-right: 2px solid #4facfe;
-}
+/* Sidebar ใสๆ เหมือนกระจก */
+[data-testid="stSidebar"] {{
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px); /* เอฟเฟกต์เบลอหลังกระจก */
+    border-right: 1px solid rgba(255,255,255,0.5);
+}}
 
-/* ตกแต่งปลา */
-.fish-container {
+/* Style ของตัวปลา */
+.fish-container {{
     position: fixed;
     bottom: 20px;
-    z-index: 999;
+    z-index: 1;
     font-size: 50px;
     animation: swim 20s linear infinite;
-    opacity: 0.8;
-}
+    pointer-events: none; /* เพื่อไม่ให้บังปุ่มกด */
+}}
 
-.bubble {
+/* Style ของฟองอากาศ */
+.bubble {{
     position: fixed;
-    bottom: -20px;
-    background: rgba(255, 255, 255, 0.4);
+    bottom: -50px;
+    background: rgba(255, 255, 255, 0.5);
     border-radius: 50%;
-    animation: float_up 10s infinite ease-in;
-}
+    z-index: 0; /* อยู่หลังปลา */
+    animation: rise infinite ease-in;
+    pointer-events: none;
+    box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1); /* เงาในฟองให้ดูมีมิติ */
+}}
 
 </style>
 
-<div class="fish-container" style="bottom: 50px; animation-duration: 25s;">🐠</div>
-<div class="fish-container" style="bottom: 120px; animation-duration: 18s; animation-delay: 5s; font-size: 30px;">🐡</div>
-<div class="fish-container" style="bottom: 200px; animation-duration: 30s; animation-delay: 2s; font-size: 60px;">🐬</div>
+<div class="fish-container" style="bottom: 10%; animation-duration: 25s;">🐠</div>
+<div class="fish-container" style="bottom: 30%; animation-duration: 18s; animation-delay: 5s; font-size: 30px;">🐡</div>
+<div class="fish-container" style="bottom: 60%; animation-duration: 35s; animation-delay: 2s; font-size: 60px;">🐬</div>
+<div class="fish-container" style="bottom: 80%; animation-duration: 40s; animation-delay: 10s; font-size: 25px;">🦑</div>
+
+{bubbles_html_code}
 """
 st.markdown(animated_ocean_css, unsafe_allow_html=True)
 
@@ -178,17 +220,17 @@ if model is None: st.stop()
 
 # --- UI Logic ---
 def clear_history():
-    st.session_state["messages"] = [{"role": "model", "content": "สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🐬🌊"}]
+    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการแล้วค่า 🐬"}]
     st.rerun()
 
 with st.sidebar:
     st.info(f"⚓ Connected: {active_model_name}")
     if st.button("🗑️ ล้างประวัติ"): clear_history()
 
-st.title("✨ น้องโลมา Graphic Bot 🐬")
+st.title("✨ น้องโลมา Graphic Bot 🐬🫧")
 
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [{"role": "model", "content": "สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🐬🌊"}]
+    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการแล้วค่า 🐬"}]
 
 for msg in st.session_state["messages"]:
     avatar_icon = "🐠" if msg["role"] == "user" else "🐬"
