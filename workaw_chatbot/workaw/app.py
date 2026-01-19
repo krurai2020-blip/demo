@@ -6,7 +6,7 @@ import streamlit as st
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import dotenv
 
-# --- พยายาม Import Prompt จากไฟล์ภายนอก (ถ้าไม่มีให้ใช้ค่า Default) ---
+# --- พยายาม Import Prompt จากไฟล์ภายนอก ---
 try:
     from prompt import PROMPT_WORKAW
 except ImportError:
@@ -26,7 +26,7 @@ genai.configure(api_key=GOOGLE_API_KEY)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 pdf_filename = os.path.join(current_dir, "Graphic.pdf")
 
-# --- Model Config (Temperature 0 เพื่อความแม่นยำ) ---
+# --- Model Config ---
 generation_config = {
     "temperature": 0.0,
     "top_p": 0.95,
@@ -42,32 +42,67 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
 }
 
-# --- 🌊 CSS ธีมท้องทะเล (Ocean Tone) 🌊 ---
-page_bg_img = """
+# --- 🌊 CSS ธีมท้องทะเลเคลื่อนไหว (Animated Ocean Theme) 🌊 ---
+animated_ocean_css = """
 <style>
-/* พื้นหลังหลักไล่สีฟ้าสดใสเหมือนน้ำทะเล */
-[data-testid="stAppViewContainer"] {
-    background-image: linear-gradient(to bottom right, #89f7fe, #66a6ff);
+/* 1. สร้าง Animation การไล่สีพื้นหลัง (เหมือนน้ำไหล) */
+@keyframes gradient_flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
-/* ส่วนหัวใส */
+
+/* 2. สร้าง Animation ปลาว่ายน้ำ */
+@keyframes swim {
+    0% { left: -10%; transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(20px) rotate(5deg); }
+    50% { transform: translateY(0px) rotate(0deg); }
+    75% { transform: translateY(-20px) rotate(-5deg); }
+    100% { left: 110%; transform: translateY(0px) rotate(0deg); }
+}
+
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(-45deg, #4facfe, #00f2fe, #43e97b, #00c6fb);
+    background-size: 400% 400%;
+    animation: gradient_flow 15s ease infinite; /* สั่งให้ขยับ */
+}
+
 [data-testid="stHeader"] {
     background-color: rgba(0, 0, 0, 0);
 }
-/* แถบด้านข้างสีฟ้าอ่อน-ขาว (ฟองคลื่น) */
-[data-testid="stSidebar"] {
-    background-color: #E0F7FA;
-    background-image: linear-gradient(180deg, #E0F7FA 0%, #B2EBF2 100%);
-    border-right: 1px solid #4DD0E1;
-}
-/* ปรับสีข้อความใน Sidebar ให้เข้มขึ้นเล็กน้อยเพื่อให้อ่านง่าย */
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
-    color: #006064;
-}
-</style>
-"""
-st.markdown(page_bg_img, unsafe_allow_html=True)
 
-# --- ระบบอ่านไฟล์แบบ Hybrid (Cache ไว้จะได้ไม่อ่านใหม่ทุกครั้ง) ---
+[data-testid="stSidebar"] {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-right: 2px solid #4facfe;
+}
+
+/* ตกแต่งปลา */
+.fish-container {
+    position: fixed;
+    bottom: 20px;
+    z-index: 999;
+    font-size: 50px;
+    animation: swim 20s linear infinite;
+    opacity: 0.8;
+}
+
+.bubble {
+    position: fixed;
+    bottom: -20px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    animation: float_up 10s infinite ease-in;
+}
+
+</style>
+
+<div class="fish-container" style="bottom: 50px; animation-duration: 25s;">🐠</div>
+<div class="fish-container" style="bottom: 120px; animation-duration: 18s; animation-delay: 5s; font-size: 30px;">🐡</div>
+<div class="fish-container" style="bottom: 200px; animation-duration: 30s; animation-delay: 2s; font-size: 60px;">🐬</div>
+"""
+st.markdown(animated_ocean_css, unsafe_allow_html=True)
+
+# --- ระบบอ่านไฟล์แบบ Hybrid ---
 @st.cache_resource(show_spinner="กำลังดำน้ำหาข้อมูลในไฟล์ PDF... 🤿")
 def load_pdf_data_hybrid(file_path):
     text_content = ""
@@ -76,17 +111,14 @@ def load_pdf_data_hybrid(file_path):
     if os.path.exists(file_path):
         try:
             doc = fitz.open(file_path)
-            
             for i, page in enumerate(doc):
                 page_num = i + 1
                 text = page.get_text()
-                # ใส่ Marker ชัดๆ ให้ AI เห็นเลขหน้า
                 text_content += f"\n[--- Page {page_num} START ---]\n{text}\n[--- Page {page_num} END ---]\n"
                 
-                # 1. ลองตัดรูป (Crop)
+                # Crop Image Logic
                 image_blocks = [b for b in page.get_text("blocks") if b[6] == 1]
                 saved_images = []
-                
                 if image_blocks:
                     for img_block in image_blocks:
                         rect = fitz.Rect(img_block[:4])
@@ -95,173 +127,108 @@ def load_pdf_data_hybrid(file_path):
                             try:
                                 pix_crop = page.get_pixmap(matrix=fitz.Matrix(3, 3), clip=rect)
                                 saved_images.append(pix_crop.tobytes("png"))
-                            except:
-                                pass
+                            except: pass
                 
-                # 2. ถ้าไม่มีรูป ให้ Capture ทั้งหน้า
                 if not saved_images:
                     pix_full = page.get_pixmap(matrix=fitz.Matrix(2, 2))
                     saved_images.append(pix_full.tobytes("png"))
 
                 if saved_images:
                     page_images_map[page_num] = saved_images
-                
             return text_content, page_images_map
         except Exception as e:
-            print(f"Error reading PDF: {e}")
+            print(f"Error: {e}")
             return "", {}
     else:
         return "", {}
 
-# --- เรียกใช้งาน ---
 pdf_text, pdf_hybrid_images = load_pdf_data_hybrid(pdf_filename)
 
 if not pdf_text:
-    st.warning(f"⚠️ ไม่พบไฟล์ {pdf_filename} หรือไฟล์ว่างเปล่า (ตรวจสอบตำแหน่งไฟล์)")
-else:
-    pass # ไฟล์ปกติ
+    st.warning(f"⚠️ ไม่พบไฟล์ {pdf_filename}")
 
-# --- Prompt (Strict Mode: บังคับตอบตามเอกสารเท่านั้น) ---
+# --- Prompt ---
 FULL_SYSTEM_PROMPT = f"""
-คุณคือ AI ผู้ช่วยตอบคำถามจากเอกสารที่แนบมานี้เท่านั้น (Document QA)
+คุณคือ AI ผู้ช่วยตอบคำถามจากเอกสาร (Document QA)
+**Strict Rules:**
+1. ตอบโดยใช้ข้อมูลใน [CONTEXT] เท่านั้น
+2. ห้ามใช้ความรู้นอกเหนือจากเอกสาร
+3. หากไม่มีข้อมูลให้ตอบว่า "ขออภัยครับ ข้อมูลส่วนนี้ไม่มีระบุไว้ในเอกสาร"
+4. ระบุเลขหน้าเสมอ เช่น [PAGE: 5]
 
-**กฏเหล็กในการตอบ (Strict Rules):**
-1. **ให้ตอบโดยใช้ข้อมูลที่มีอยู่ในส่วน [CONTEXT] ด้านล่างนี้เท่านั้น**
-2. **ห้าม** ใช้ความรู้อื่นนอกเหนือจากเอกสาร หรือความรู้ทั่วไปที่คุณมีในการตอบเด็ดขาด
-3. หากคำถามใดไม่มีคำตอบอยู่ใน [CONTEXT] ให้ตอบว่า: "ขออภัยครับ ข้อมูลส่วนนี้ไม่มีระบุไว้ในเอกสาร" (ห้ามพยายามเดาคำตอบเอง)
-4. การอ้างอิงหน้า: เมื่อนำข้อมูลมาจากส่วนใด ให้ระบุเลขหน้าต่อท้ายเสมอ เช่น [PAGE: 5] โดยดูจาก Tag [--- Page X START ---] ที่กำกับอยู่เหนือข้อความนั้น
-
-----------------------------------------
-[CONTEXT] (เนื้อหาจากเอกสาร):
+[CONTEXT]:
 {pdf_text}
-----------------------------------------
 """
 
-# --- 🔥 ฟังก์ชันเช็ค Error (Debug Mode)  🔥 ---
+# --- Setup Model ---
 @st.cache_resource(show_spinner="กำลังเชื่อมต่อคลื่นสมอง AI... 🌊")
 def setup_gemini_model():
-    # รายชื่อโมเดลตามที่คุณเช็คสิทธิ์มา
-    candidate_models = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-flash-latest"
-    ]  
-    error_logs = [] # เก็บ Error ไว้โชว์
+    candidate_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
     for model_name in candidate_models:
         try:
-            # สร้าง Object โมเดล (ยังไม่ใส่ System Prompt ตอนเทส เพื่อลดภาระ)
-            test_model = genai.GenerativeModel(
-                model_name=model_name,
-                safety_settings=SAFETY_SETTINGS,
-                generation_config=generation_config
-            )
-            # Ping Test: ส่งข้อความสั้นๆ
-            test_model.generate_content("Hi")           
-            # ถ้าผ่าน ให้สร้างโมเดลตัวจริงพร้อม System Prompt
-            real_model = genai.GenerativeModel(
-                model_name=model_name,
-                safety_settings=SAFETY_SETTINGS,
-                generation_config=generation_config,
-                system_instruction=FULL_SYSTEM_PROMPT
-            )           
-            return real_model, model_name  
-        except Exception as e:
-            # เก็บข้อความ Error ไว้
-            error_msg = f"❌ {model_name}: {str(e)}"
-            print(error_msg)
-            error_logs.append(error_msg)
-            continue 
-    # ถ้าหลุดมาถึงตรงนี้ แสดงว่าพังหมด ให้โชว์ Error บนหน้าจอแอปเลย
-    st.error("⚠️ เชื่อมต่อไม่ได้ ดูรายละเอียดด้านล่าง:")
-    for err in error_logs:
-        st.code(err, language='text') # โชว์ Error ให้เห็นชัดๆ    
+            test_model = genai.GenerativeModel(model_name=model_name, safety_settings=SAFETY_SETTINGS, generation_config=generation_config)
+            test_model.generate_content("Hi")
+            real_model = genai.GenerativeModel(model_name=model_name, safety_settings=SAFETY_SETTINGS, generation_config=generation_config, system_instruction=FULL_SYSTEM_PROMPT)
+            return real_model, model_name
+        except: continue
     return None, None
 
-# เรียกใช้ฟังก์ชัน
 model, active_model_name = setup_gemini_model()
+if model is None: st.stop()
 
-if model is None:
-    st.error("🚨 ไม่สามารถเชื่อมต่อกับ Gemini ได้เลย (กรุณาเช็ค API Key หรือลองใหม่อีกครั้งใน 1 นาที)")
-    st.stop()
-
-# --- UI Streamlit ---
+# --- UI Logic ---
 def clear_history():
-    st.session_state["messages"] = [
-        {"role": "model", "content": "สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🐬🌊"}
-    ]
+    st.session_state["messages"] = [{"role": "model", "content": "สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🐬🌊"}]
     st.rerun()
 
 with st.sidebar:
-    st.success(f"⚓ Connected: {active_model_name}") 
-    if st.button("🗑️ ล้างประวัติการคุย"):
-        clear_history()
+    st.info(f"⚓ Connected: {active_model_name}")
+    if st.button("🗑️ ล้างประวัติ"): clear_history()
 
 st.title("✨ น้องโลมา Graphic Bot 🐬")
 
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [
-        {"role": "model", "content": "สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🐬🌊"}
-    ]
+    st.session_state["messages"] = [{"role": "model", "content": "สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการความรู้เรื่องกราฟิกแล้วค่า 🐬🌊"}]
 
-# แสดงผลประวัติ
 for msg in st.session_state["messages"]:
-    # เปลี่ยน Avatar เป็นธีมทะเล: User=คนดำน้ำ/ปลา, Model=โลมา
     avatar_icon = "🐠" if msg["role"] == "user" else "🐬"
     with st.chat_message(msg["role"], avatar=avatar_icon):
         st.write(msg["content"])
-        if "image_list" in msg and msg["image_list"]:
-             for idx, img_data in enumerate(msg["image_list"]):
+        if "image_list" in msg:
+             for img_data in msg["image_list"]:
                 st.image(img_data, caption=f"🖼️ ภาพประกอบจากหน้า {msg.get('page_num_ref')}", use_container_width=True)
 
-# รับข้อความ
-if prompt := st.chat_input("พิมพ์คำถามที่นี่ได้เลยครับ..."):
+if prompt := st.chat_input("พิมพ์คำถามที่นี่..."):
     st.session_state["messages"].append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="🐠").write(prompt)
 
-    def generate_response():
-        history_api = [
-            {"role": msg["role"], "parts": [{"text": msg["content"]}]}
-            for msg in st.session_state["messages"] if "content" in msg
-        ]
+    try:
+        history_api = [{"role": m["role"], "parts": [{"text": m["content"]}]} for m in st.session_state["messages"] if "content" in m]
+        strict_prompt = f"{prompt}\n(คำสั่งลับ: ค้นหาคำตอบจาก Context เท่านั้น และระบุเลขหน้า [PAGE: x])"
+        
+        response = model.start_chat(history=history_api).send_message(strict_prompt)
+        response_text = response.text
+        
+        # Extract Images
+        page_match = re.search(r"\[PAGE:\s*(\d+)\]", response_text)
+        images_to_show = []
+        p_num = None
+        if page_match:
+            try:
+                p_num = int(page_match.group(1))
+                if p_num in pdf_hybrid_images: images_to_show = pdf_hybrid_images[p_num]
+            except: pass
 
-        try:
-            # ย้ำคำสั่งในทุกข้อความ
-            strict_prompt = f"{prompt}\n(คำสั่งลับ: ค้นหาคำตอบจาก Context เท่านั้น และต้องระบุเลขหน้า [PAGE: x] ให้ถูกต้อง)"
-            
-            chat_session = model.start_chat(history=history_api)
-            response = chat_session.send_message(strict_prompt)
-            response_text = response.text
-            
-            # ดึงเลขหน้า
-            page_match = re.search(r"\[PAGE:\s*(\d+)\]", response_text)
-            images_to_show = []
-            ref_page_num = None
-            p_num = None 
-            
-            if page_match:
-                try:
-                    p_num = int(page_match.group(1))
-                    ref_page_num = p_num
-                    if p_num in pdf_hybrid_images:
-                        images_to_show = pdf_hybrid_images[p_num]
-                except:
-                    pass
-
-            with st.chat_message("model", avatar="🐬"):
-                st.write(response_text)
-                if images_to_show:
-                    for idx, img_data in enumerate(images_to_show):
-                        st.image(img_data, caption=f"🖼️ ภาพประกอบจากหน้า {p_num}", use_container_width=True)
-            
-            msg_data = {"role": "model", "content": response_text}
+        with st.chat_message("model", avatar="🐬"):
+            st.write(response_text)
             if images_to_show:
-                msg_data["image_list"] = images_to_show 
-                msg_data["page_num_ref"] = ref_page_num
-                
-            st.session_state["messages"].append(msg_data)
+                for img in images_to_show: st.image(img, caption=f"หน้า {p_num}", use_container_width=True)
+        
+        msg_data = {"role": "model", "content": response_text}
+        if images_to_show:
+            msg_data["image_list"] = images_to_show
+            msg_data["page_num_ref"] = p_num
+        st.session_state["messages"].append(msg_data)
 
-        except Exception as e:
-            st.error(f"ระบบขัดข้อง: {e}")
-
-    generate_response()
+    except Exception as e:
+        st.error(f"Error: {e}")
