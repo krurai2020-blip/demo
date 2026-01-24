@@ -195,7 +195,7 @@ FULL_SYSTEM_PROMPT = f"""
 """
 
 generation_config = {
-    "temperature": 0.0, 
+    "temperature": 0., 
     "top_p": 0.95,
     "top_k": 40,
     # ✅ FIX 4: เพิ่ม Token ให้ตอบยาวได้เต็มที่ (จาก 2000 -> 8192)
