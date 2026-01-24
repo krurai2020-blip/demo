@@ -34,9 +34,10 @@ generation_config = {
     "temperature": 0.0,
     "top_p": 0.95,
     "top_k": 40,
-    "max_output_tokens": 2048,
+    "max_output_tokens": 2500,
     "response_mime_type": "text/plain",
 }
+
 
 SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -248,7 +249,7 @@ def send_message_with_retry(chat_session, prompt_text, retries=3):
 
 # --- UI & Chat Logic ---
 def clear_history():
-    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการแล้วค่า 🐬"}]
+    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI โปรแกรมคอมพิวเตอร์กราฟิกพร้อมให้บริการแล้วค่า 🐬"}]
     st.rerun()
 
 with st.sidebar:
@@ -258,7 +259,7 @@ with st.sidebar:
 st.title("✨ น้องโลมา Graphic Bot 🐬🫧")
 
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการแล้วค่า 🐬"}]
+    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI โปรแกรมคอมพิวเตอร์กราฟิกพร้อมให้บริการแล้วค่า 🐬"}]
 
 # แสดงประวัติการแชท
 for msg in st.session_state["messages"]:
