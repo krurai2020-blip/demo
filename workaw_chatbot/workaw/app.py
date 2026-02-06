@@ -226,7 +226,6 @@ model, active_model_name = setup_gemini_model()
 if model is None:
     st.error("🚨 ไม่สามารถเชื่อมต่อกับ Gemini ได้เลย (กรุณาเช็ค API Key หรือลองใหม่อีกครั้งใน 1 นาที)")
     st.stop()
-
 # --- 🚀 ฟังก์ชันส่งข้อความแบบมี Retry (แก้ 429) ---
 def send_message_with_retry(chat_session, prompt_text, retries=3):
     """
