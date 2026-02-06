@@ -314,7 +314,6 @@ if prompt := st.chat_input("พิมพ์คำถามเกี่ยวก�
                 if images_to_show:
                     for img in images_to_show:
                         st.image(img, caption=f"หน้า {p_num}")
-
             # Save to History
             msg_data = {"role": "model", "content": response_text}
             if images_to_show:
