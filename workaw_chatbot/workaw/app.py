@@ -260,7 +260,6 @@ st.title("✨ น้องโลมา Graphic Bot 🐬🫧")
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI โปรแกรมคอมพิวเตอร์กราฟิกพร้อมให้บริการแล้วค่า 🐬"}]
-
 # แสดงประวัติการแชท
 for msg in st.session_state["messages"]:
     avatar_icon = "🐠" if msg["role"] == "user" else "🐬"
