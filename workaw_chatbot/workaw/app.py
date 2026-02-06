@@ -34,7 +34,7 @@ generation_config = {
     "temperature": 0.0,
     "top_p": 0.95,
     "top_k": 40,
-    "max_output_tokens": 2500,
+    "max_output_tokens": 2048,
     "response_mime_type": "text/plain",
 }
 
@@ -170,13 +170,12 @@ if not pdf_text:
 
 # --- Prompt System ---
 FULL_SYSTEM_PROMPT = f"""
-คุณคือ AI ผู้ช่วยตอบคำถามจากเอกสาร (Document QA) ที่ละเอียดรอบคอบ
+คุณคือ AI ผู้ช่วยตอบคำถามจากเอกสาร (Document QA)
 **Strict Rules:**
 1. ตอบโดยใช้ข้อมูลใน [CONTEXT] ด้านล่างนี้เท่านั้น
 2. ห้ามใช้ความรู้นอกเหนือจากเอกสาร หรือความรู้ทั่วไป
-3. **หากเนื้อหาในเอกสารมีความยาว ให้ตอบออกมาให้ครบถ้วนทุกประเด็น "ห้ามย่อความ" และ "ห้ามตัดทอนเนื้อหา"** <--- เพิ่มตรงนี้
-4. หากข้อมูลกระจายอยู่หลายหน้า ให้นำมารวมกันให้ครบ
-5. ระบุเลขหน้าเสมอ เช่น [PAGE: 5]
+3. หากไม่มีข้อมูลในเอกสาร ให้ตอบว่า "ขออภัยค่ะ ข้อมูลส่วนนี้ไม่มีระบุไว้ในเอกสาร"
+4. ระบุเลขหน้าเสมอ เช่น [PAGE: 5] โดยดูจาก Tag [--- Page X START ---]
 
 [CONTEXT]:
 {pdf_text}
@@ -249,7 +248,7 @@ def send_message_with_retry(chat_session, prompt_text, retries=3):
 
 # --- UI & Chat Logic ---
 def clear_history():
-    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI โปรแกรมคอมพิวเตอร์กราฟิกพร้อมให้บริการแล้วค่า 🐬"}]
+    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการแล้วค่า 🐬"}]
     st.rerun()
 
 with st.sidebar:
@@ -259,7 +258,8 @@ with st.sidebar:
 st.title("✨ น้องโลมา Graphic Bot 🐬🫧")
 
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI โปรแกรมคอมพิวเตอร์กราฟิกพร้อมให้บริการแล้วค่า 🐬"}]
+    st.session_state["messages"] = [{"role": "model", "content": "บุ๋งๆๆ 🫧 สวัสดีค่ะ น้องโลมา AI พร้อมให้บริการแล้วค่า 🐬"}]
+
 # แสดงประวัติการแชท
 for msg in st.session_state["messages"]:
     avatar_icon = "🐠" if msg["role"] == "user" else "🐬"
@@ -313,4 +313,3 @@ if prompt := st.chat_input("พิมพ์คำถามที่นี่..."
 
     except Exception as e:
         st.error(f"Error: {e}")
-
