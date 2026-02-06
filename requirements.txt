@@ -16,3 +16,8 @@ pprintpp
 python-dotenv
 pymupdf
 pdfplumber
+streamlit
+google-generativeai
+python-dotenv
+pymupdf
+pdfplumber
