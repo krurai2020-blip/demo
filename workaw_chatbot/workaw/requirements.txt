@@ -13,5 +13,5 @@ streamlit
 gspread
 oauth2client
 pprintpp
-python-dotenv
 pymupdf
+pdfplumber
